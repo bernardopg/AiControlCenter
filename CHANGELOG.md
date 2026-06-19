@@ -3,6 +3,19 @@
 All notable changes to AiControlCenter are documented here.
 This project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.1.0] — 2026-06-19
+
+### Fixed
+- Horizontal padding restored across the panel: `Layout.leftMargin`/`Layout.rightMargin` were no-ops on `RowLayout`s parented to a positioner or using `anchors.fill`, leaving the title, search, footer, card rows and section headers jammed against the border and misaligned with their inset grids.
+- Daily token chart no longer renders as floating slab-wide blocks: added a per-day baseline and minimum bar height, raised bar contrast, capped bar width, and constrained the chart to a compact centered block.
+
+### Changed
+- Over-stretched desktop frames now stay a tidy, centered panel: content is capped to a maximum width (`maxContentWidth`) while the surface still fills the frame; column counts derive from the capped content width instead of the raw frame width.
+- Default panel opacity raised 72 → 92 for legibility over bright wallpapers.
+
+### Added
+- `CLAUDE.md` with build/validation commands, runtime architecture, the provider-adapter JSON contract, and layout gotchas.
+
 ## [1.0.0] — 2026-06-19
 
 ### Added

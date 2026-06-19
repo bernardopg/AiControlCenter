@@ -2,7 +2,7 @@
   "id": "aiControlCenter",
   "name": "AiControlCenter",
   "description": "Workspace (desktop-layer) AI control center for DankMaterialShell — unified quotas, telemetry, and provider health in a dense technical-minimalist panel",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "author": "bernardopg",
   "icon": "developer_board",
   "type": "desktop",
