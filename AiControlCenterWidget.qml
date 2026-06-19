@@ -23,12 +23,16 @@ DesktopPluginComponent {
     // --- Appearance (desktop-specific) ---
     property real backgroundOpacity: {
         const v = pluginData.backgroundOpacity
-        const n = v === undefined || v === null ? 72 : parseInt(v)
-        return Number.isFinite(n) ? Math.max(0, Math.min(100, n)) / 100 : 0.72
+        const n = v === undefined || v === null ? 92 : parseInt(v)
+        return Number.isFinite(n) ? Math.max(0, Math.min(100, n)) / 100 : 0.92
     }
     property bool showHeader: pluginData.showHeader === undefined ? true : String(pluginData.showHeader) !== "false"
     property int cornerRadius: Theme.cornerRadius
     property string monoFontFamily: Theme.monoFontFamily || "monospace"
+    // Cap content width so an over-stretched desktop frame stays a tidy,
+    // centered panel instead of sparse rows of slab-wide bars/cards.
+    property int maxContentWidth: 820
+    readonly property real contentWidth: Math.min(maxContentWidth, widgetWidth)
 
     // --- Data state (ported verbatim from AiOverviewControl) ---
     property var providers: []
@@ -1028,7 +1032,10 @@ DesktopPluginComponent {
 
         Column {
             id: shell
-            anchors.fill: parent
+            anchors.top: parent.top
+            anchors.bottom: parent.bottom
+            anchors.horizontalCenter: parent.horizontalCenter
+            width: Math.min(root.maxContentWidth, surface.width)
             spacing: 0
 
             // ---------- Control bar ----------
@@ -1042,11 +1049,16 @@ DesktopPluginComponent {
                     width: parent.width
                     spacing: 0
                     // title row
-                    RowLayout {
+                    Item {
                         width: parent.width
-                        spacing: Theme.spacingS
-                        Layout.leftMargin: Theme.spacingM
-                        Layout.rightMargin: Theme.spacingS
+                        height: titleRow.implicitHeight
+                        RowLayout {
+                            id: titleRow
+                            anchors.left: parent.left
+                            anchors.right: parent.right
+                            anchors.leftMargin: Theme.spacingM
+                            anchors.rightMargin: Theme.spacingS
+                            spacing: Theme.spacingS
                         Rectangle { // status dot
                             implicitWidth: 8; implicitHeight: 8; radius: 4
                             Layout.alignment: Qt.AlignVCenter
@@ -1090,15 +1102,19 @@ DesktopPluginComponent {
                                 onClicked: root.refresh()
                             }
                         }
+                        }
                     }
                     // search + filters row
-                    RowLayout {
+                    Item {
                         width: parent.width
                         height: 34
                         visible: root.widgetWidth > 300
-                        spacing: Theme.spacingS
-                        Layout.leftMargin: Theme.spacingM
-                        Layout.rightMargin: Theme.spacingM
+                        RowLayout {
+                            id: searchRow
+                            anchors.fill: parent
+                            anchors.leftMargin: Theme.spacingM
+                            anchors.rightMargin: Theme.spacingM
+                            spacing: Theme.spacingS
                         Rectangle { // search field
                             Layout.fillWidth: true
                             implicitHeight: 24
@@ -1165,6 +1181,7 @@ DesktopPluginComponent {
                                     }
                                 }
                             }
+                        }
                         }
                     }
                     Rectangle { // divider
@@ -1308,7 +1325,7 @@ DesktopPluginComponent {
                     GridLayout {
                         id: providerGrid
                         width: parent.width
-                        columns: root.widgetWidth < 460 ? 1 : (root.widgetWidth < 720 ? 2 : (root.widgetWidth < 1000 ? 3 : 4))
+                        columns: root.contentWidth < 460 ? 1 : (root.contentWidth < 720 ? 2 : (root.contentWidth < 1000 ? 3 : 4))
                         columnSpacing: 1
                         rowSpacing: 1
                         visible: root.filteredDisplayProviders.length > 0
@@ -1345,9 +1362,9 @@ DesktopPluginComponent {
                 Rectangle { anchors.top: parent.top; width: parent.width; height: 1; color: Theme.withAlpha(Theme.outlineVariant, 0.5) }
                 RowLayout {
                     anchors.fill: parent
+                    anchors.leftMargin: Theme.spacingM
+                    anchors.rightMargin: Theme.spacingM
                     spacing: Theme.spacingS
-                    Layout.leftMargin: Theme.spacingM
-                    Layout.rightMargin: Theme.spacingM
                     StyledText {
                         text: root.lastUpdated.length > 0 ? root.t("card.updated_at", "Updated {time}", { time: root.lastUpdated }) : ""
                         color: Theme.surfaceVariantText
@@ -1439,9 +1456,9 @@ DesktopPluginComponent {
                 }
                 RowLayout {
                     anchors.fill: parent
+                    anchors.leftMargin: Theme.spacingS
+                    anchors.rightMargin: Theme.spacingS
                     spacing: Theme.spacingS
-                    Layout.leftMargin: Theme.spacingS
-                    Layout.rightMargin: Theme.spacingS
                     Rectangle { // status bar (left edge)
                         implicitWidth: 3; implicitHeight: parent.height - 12
                         Layout.alignment: Qt.AlignVCenter
@@ -1631,8 +1648,9 @@ DesktopPluginComponent {
                         border.color: Theme.withAlpha(Theme.error, 0.4); border.width: 1
                         RowLayout {
                             anchors.fill: parent
+                            anchors.leftMargin: Theme.spacingS
+                            anchors.rightMargin: Theme.spacingS
                             spacing: 4
-                            Layout.leftMargin: 8
                             DankIcon { name: "refresh"; size: 13; color: Theme.error; Layout.alignment: Qt.AlignVCenter }
                             StyledText {
                                 text: root.retryingProviderId === card.pid ? "…" : root.t("card.retry", "Retry")
@@ -1732,7 +1750,7 @@ DesktopPluginComponent {
         GridLayout {
             width: parent.width - Theme.spacingM * 2
             anchors.horizontalCenter: parent.horizontalCenter
-            columns: root.widgetWidth < 520 ? 2 : 4
+            columns: root.contentWidth < 520 ? 2 : 4
             columnSpacing: Theme.spacingS; rowSpacing: Theme.spacingS
             MetricTile { labelText: root.t("card.today_cost", "Today cost"); valueText: root.formatCost(root.claudeTodayCost); accentColor: Theme.warning }
             MetricTile { labelText: root.t("card.today_tokens", "Today tokens"); valueText: root.formatTokens(root.claudeDailyTokens[root.currentWeekdayIndex]); accentColor: Theme.warning }
@@ -1745,7 +1763,7 @@ DesktopPluginComponent {
         }
         Item { // daily token bars
             id: dayBarsContainer
-            width: parent.width - Theme.spacingM * 2
+            width: Math.min(380, parent.width - Theme.spacingM * 2)
             anchors.horizontalCenter: parent.horizontalCenter
             height: 56
             readonly property real maxTok: {
@@ -1768,12 +1786,21 @@ DesktopPluginComponent {
                         Item {
                             Layout.fillWidth: true
                             Layout.fillHeight: true
+                            Rectangle { // baseline rule
+                                anchors.bottom: parent.bottom
+                                anchors.left: parent.left
+                                anchors.right: parent.right
+                                height: 1
+                                color: Theme.withAlpha(Theme.outlineVariant, 0.5)
+                            }
                             Rectangle {
                                 anchors.bottom: parent.bottom
                                 anchors.horizontalCenter: parent.horizontalCenter
-                                width: parent.width * 0.7
-                                height: dayBarsContainer.maxTok > 0 ? parent.height * (dayCol.tok / dayBarsContainer.maxTok) : 1
-                                color: index === root.currentWeekdayIndex ? Theme.primary : Theme.withAlpha(Theme.secondary, 0.5)
+                                width: Math.min(26, parent.width * 0.7)
+                                height: dayBarsContainer.maxTok > 0 && dayCol.tok > 0
+                                    ? Math.max(2, parent.height * (dayCol.tok / dayBarsContainer.maxTok))
+                                    : 0
+                                color: index === root.currentWeekdayIndex ? Theme.primary : Theme.withAlpha(Theme.secondary, 0.8)
                                 radius: 1
                             }
                         }
@@ -1841,7 +1868,7 @@ DesktopPluginComponent {
         GridLayout {
             width: parent.width - Theme.spacingM * 2
             anchors.horizontalCenter: parent.horizontalCenter
-            columns: root.widgetWidth < 520 ? 2 : 4
+            columns: root.contentWidth < 520 ? 2 : 4
             columnSpacing: Theme.spacingS; rowSpacing: Theme.spacingS
             MetricTile { labelText: root.t("card.nine_today", "Today"); valueText: `${root.formatCost(ntp.sToday.cost || 0)} · ${Number(ntp.sToday.requests || 0)} req`; accentColor: Theme.secondary }
             MetricTile { labelText: root.t("card.week", "Week"); valueText: `${root.formatCost(ntp.sWeek.cost || 0)} · ${Number(ntp.sWeek.requests || 0)} req`; accentColor: Theme.secondary }
@@ -1850,19 +1877,25 @@ DesktopPluginComponent {
         }
     }
 
-    component SectionHeader : RowLayout {
+    component SectionHeader : Item {
         id: sh
         property string titleText: ""
         property string subtitleText: ""
         property string extraText: ""
         width: parent.width
-        spacing: Theme.spacingS
-        Layout.leftMargin: Theme.spacingM
-        Layout.rightMargin: Theme.spacingM
-        StyledText { text: titleText.toUpperCase(); color: Theme.surfaceVariantText; font.pixelSize: Theme.fontSizeSmall - 3; font.family: root.monoFontFamily; font.letterSpacing: 0.8; Layout.alignment: Qt.AlignVCenter }
-        StyledText { text: subtitleText; color: Theme.surfaceText; font.pixelSize: Theme.fontSizeSmall - 2; font.weight: Font.DemiBold; Layout.alignment: Qt.AlignVCenter }
-        Item { Layout.fillWidth: true }
-        StyledText { text: extraText; color: Theme.warning; font.pixelSize: Theme.fontSizeSmall - 2; font.family: root.monoFontFamily; font.weight: Font.DemiBold; Layout.alignment: Qt.AlignVCenter }
+        height: shRow.implicitHeight
+        RowLayout {
+            id: shRow
+            anchors.left: parent.left
+            anchors.right: parent.right
+            anchors.leftMargin: Theme.spacingM
+            anchors.rightMargin: Theme.spacingM
+            spacing: Theme.spacingS
+            StyledText { text: sh.titleText.toUpperCase(); color: Theme.surfaceVariantText; font.pixelSize: Theme.fontSizeSmall - 3; font.family: root.monoFontFamily; font.letterSpacing: 0.8; Layout.alignment: Qt.AlignVCenter }
+            StyledText { text: sh.subtitleText; color: Theme.surfaceText; font.pixelSize: Theme.fontSizeSmall - 2; font.weight: Font.DemiBold; Layout.alignment: Qt.AlignVCenter }
+            Item { Layout.fillWidth: true }
+            StyledText { text: sh.extraText; color: Theme.warning; font.pixelSize: Theme.fontSizeSmall - 2; font.family: root.monoFontFamily; font.weight: Font.DemiBold; Layout.alignment: Qt.AlignVCenter }
+        }
     }
 
     component MetricTile : ColumnLayout {
