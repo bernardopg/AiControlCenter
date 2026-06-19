@@ -1,0 +1,6 @@
+# Plugin data store (DMS owns this; ignore to avoid committing local state)
+plugin_settings.json
+plugin_settings.json.bak*
+
+# Local usage history / cache (regenerated at runtime)
+.cache/

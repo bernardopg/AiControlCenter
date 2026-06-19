@@ -1,0 +1,85 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    name: Validate manifest, i18n, shell & QML
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq jq shellcheck
+
+      - name: Validate plugin.json (syntax + semver)
+        run: |
+          jq --exit-status . plugin.json >/dev/null
+          VERSION="$(jq -r '.version' plugin.json)"
+          echo "$VERSION" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$' || {
+            echo "::error::plugin.json version '${VERSION}' is not semver" >&2
+            exit 1
+          }
+
+      - name: Validate i18n JSON syntax
+        run: |
+          for f in i18n/*.json; do
+            jq --exit-status . "$f" >/dev/null || { echo "::error::${f} is not valid JSON" >&2; exit 1; }
+          done
+
+      - name: Validate i18n key parity
+        run: |
+          python3 - <<'PY'
+          import json, sys
+          from pathlib import Path
+          base = set(json.loads(Path('i18n/en.json').read_text()).keys())
+          errors = []
+          for p in sorted(Path('i18n').glob('*.json')):
+              if p.name == 'en.json':
+                  continue
+              keys = set(json.loads(p.read_text()).keys())
+              missing = base - keys
+              extra = keys - base
+              if missing:
+                  errors.append(f"{p.name}: missing {sorted(missing)}")
+              if extra:
+                  errors.append(f"{p.name}: extra {sorted(extra)}")
+          if errors:
+              print("\n".join(errors), file=sys.stderr)
+              sys.exit(1)
+          print(f"parity OK across {len(list(Path('i18n').glob('*.json')))} locales ({len(base)} keys)")
+          PY
+
+      - name: Bash syntax check
+        run: bash -n providers/get-* providers/send-quota-alert
+
+      - name: Shellcheck
+        run: shellcheck providers/get-* providers/send-quota-alert
+
+      - name: Provider script permissions
+        run: |
+          for f in providers/get-* providers/send-quota-alert; do
+            [ -x "$f" ] || { echo "::error::${f} is not executable" >&2; exit 1; }
+          done
+
+      - name: Install Qt QML tooling
+        run: sudo apt-get install -y -qq qt6-declarative-dev-tools
+
+      - name: QML lint
+        run: qmllint AiControlCenterWidget.qml AiControlCenterSettings.qml AiControlCenterI18n.qml || true
