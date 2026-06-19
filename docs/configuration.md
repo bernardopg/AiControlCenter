@@ -16,7 +16,7 @@ All settings are stored through DMS. Plugin updates do not overwrite user choice
 
 | Setting | Values | Default |
 | --- | --- | --- |
-| Panel opacity | 0–100% | 72% |
+| Panel opacity | 0–100% | 92% |
 | Show control bar | enabled or disabled | enabled |
 
 Compact density reduces collapsed-card height and hides the preview progress bar. Panel opacity controls how much of the wallpaper shows through the desktop surface.

@@ -68,7 +68,7 @@ Errors return `{ "provider", "source", "error": { "code", "kind", "message" } }`
 | `showErrorProviders` | `true` | Keep provider failures visible. |
 | `densityMode` | `comfortable` | Comfortable or compact row layout. |
 | `languageOverride` | `auto` | Plugin locale override. |
-| `backgroundOpacity` | `72` | Desktop panel opacity (0–100). |
+| `backgroundOpacity` | `92` | Desktop panel opacity (0–100). |
 | `showHeader` | `true` | Control bar visibility. |
 | `pinnedProviders` | empty | Comma-separated pinned provider IDs. |
 | `quotaNotifications` | `true` | Desktop alert toggle. |
