@@ -19,8 +19,6 @@ DesktopPluginComponent {
     // --- Desktop sizing ---
     minWidth: 320
     minHeight: 260
-    defaultWidth: 460
-    defaultHeight: 600
 
     // --- Appearance (desktop-specific) ---
     property real backgroundOpacity: {
