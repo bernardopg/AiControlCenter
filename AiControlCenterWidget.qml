@@ -107,7 +107,12 @@ DesktopPluginComponent {
     property string claudeFiveHourReset: ""
     property real claudeSevenDayUtil: 0
     property string claudeSevenDayReset: ""
+    property real claudeScopedLimitUtil: 0
+    property string claudeScopedLimitReset: ""
+    property string claudeScopedLimitModel: ""
+    property bool claudeScopedLimitActive: false
     property bool claudeExtraUsageEnabled: false
+    property real claudeExtraUsageUtil: 0
     property int claudeWeekMessages: 0
     property int claudeWeekSessions: 0
     property real claudeWeekTokens: 0
@@ -149,7 +154,7 @@ DesktopPluginComponent {
         "codex", "claude", "copilot", "gemini", "9router", "openrouter",
         "deepseek", "kimi", "mistral", "glm", "zai", "minimax", "qwen",
         "nvidia", "cloudflare", "vertexai", "byteplus", "ollama", "together",
-        "groq", "cohere", "replicate", "fireworks", "ai21", "xai", "kilo",
+        "groq", "cohere", "replicate", "fireworks", "ai21", "xai", "kilo", "antigravity",
         "perplexity", "cursor", "cline", "opencode", "kiro", "warp", "amp"
     ]
 
@@ -348,7 +353,7 @@ DesktopPluginComponent {
             ollama: "Ollama", together: "Together AI", groq: "Groq", cohere: "Cohere",
             replicate: "Replicate", fireworks: "Fireworks AI", ai21: "AI21", xai: "xAI",
             grok: "xAI", perplexity: "Perplexity", cline: "Cline", opencode: "OpenCode",
-            kilo: "Kilo", kiro: "Kiro", amp: "Amp", warp: "Warp"
+            kilo: "Kilo", antigravity: "Antigravity", agy: "Antigravity", kiro: "Kiro", amp: "Amp", warp: "Warp"
         }
         return names[providerId] || capitalizeFirst(providerId || "provider")
     }
@@ -481,6 +486,7 @@ DesktopPluginComponent {
         if (providerId === "warp") return "rocket_launch"
         if (providerId === "amp") return "electric_bolt"
         if (providerId === "kilo") return "speed"
+        if (providerId === "antigravity" || providerId === "agy") return "deployed_code"
         if (providerId === "kiro") return "tune"
         return "monitoring"
     }
@@ -526,6 +532,38 @@ DesktopPluginComponent {
         const usage = provider && provider.usage ? provider.usage : null
         if (!usage) return null
         return usage.primary || usage.secondary || usage.tertiary || null
+    }
+
+    // Providers that expose more than one signed-in account (currently only
+    // Antigravity, which surfaces every local IDE / Google session) carry an
+    // `accounts` array. The card renders these as separate blocks.
+    function accountsForProvider(provider) {
+        if (!provider || !provider.accounts || !provider.accounts.length) return []
+        return provider.accounts
+    }
+
+    function hasMultipleAccounts(provider) {
+        return accountsForProvider(provider).length >= 1 && !!provider && !provider.error
+    }
+
+    function accountLabel(account) {
+        if (!account) return ""
+        return account.install || t("card.account", "Account")
+    }
+
+    function accountEmail(account) {
+        if (!account) return ""
+        return account.email || ""
+    }
+
+    function accountWorstPercent(account) {
+        if (!account || !account.windows || !account.windows.length) return 0
+        let worst = 0
+        for (let i = 0; i < account.windows.length; i++) {
+            const p = Number(account.windows[i].usedPercent || 0)
+            if (p > worst) worst = p
+        }
+        return worst
     }
 
     function providerReset(provider) {
@@ -589,7 +627,12 @@ DesktopPluginComponent {
         else if (key === "FIVE_HOUR_RESET") claudeFiveHourReset = val
         else if (key === "SEVEN_DAY_UTIL") claudeSevenDayUtil = Number(val || 0)
         else if (key === "SEVEN_DAY_RESET") claudeSevenDayReset = val
+        else if (key === "SCOPED_LIMIT_UTIL") claudeScopedLimitUtil = Number(val || 0)
+        else if (key === "SCOPED_LIMIT_RESET") claudeScopedLimitReset = val
+        else if (key === "SCOPED_LIMIT_MODEL") claudeScopedLimitModel = val
+        else if (key === "SCOPED_LIMIT_ACTIVE") claudeScopedLimitActive = (val === "true")
         else if (key === "EXTRA_USAGE_ENABLED") claudeExtraUsageEnabled = (val === "true")
+        else if (key === "EXTRA_USAGE_UTIL") claudeExtraUsageUtil = Number(val || 0)
         else if (key === "WEEK_MESSAGES") claudeWeekMessages = parseInt(val) || 0
         else if (key === "WEEK_SESSIONS") claudeWeekSessions = parseInt(val) || 0
         else if (key === "WEEK_TOKENS") claudeWeekTokens = Number(val || 0)
@@ -690,6 +733,7 @@ DesktopPluginComponent {
             cline: "https://app.cline.bot",
             opencode: "https://opencode.ai",
             kilo: "https://app.kilo.ai/credits",
+            antigravity: "https://antigravity.google/docs/cli-credits", agy: "https://antigravity.google/docs/cli-credits",
             kiro: "https://app.kiro.dev/settings/account",
             warp: "https://app.warp.dev",
             amp: "https://ampcode.com"
@@ -1592,12 +1636,12 @@ DesktopPluginComponent {
                         }
                     }
 
-                    Column { // window rows
+                    Column { // window rows (single-account providers)
                         width: parent.width
                         spacing: 2
-                        visible: card.hasUsage
+                        visible: card.hasUsage && !root.hasMultipleAccounts(card.provider)
                         Repeater {
-                            model: root.windowsForProvider(card.provider)
+                            model: visible ? root.windowsForProvider(card.provider) : []
                             delegate: RowLayout {
                                 width: parent.width
                                 spacing: Theme.spacingS
@@ -1630,11 +1674,24 @@ DesktopPluginComponent {
                         }
                     }
 
-                    GridLayout { // identity / credits
+                    Column { // multi-account breakdown (e.g. Antigravity: one block per IDE / Google account)
+                        width: parent.width
+                        spacing: Theme.spacingS
+                        visible: root.hasMultipleAccounts(card.provider)
+                        Repeater {
+                            model: visible ? root.accountsForProvider(card.provider) : []
+                            delegate: AccountBlock {
+                                width: parent.width
+                                account: modelData
+                            }
+                        }
+                    }
+
+                    GridLayout { // identity / credits (single-account providers)
                         width: parent.width
                         columns: 2
                         columnSpacing: Theme.spacingS; rowSpacing: 2
-                        visible: card.hasUsage
+                        visible: card.hasUsage && !root.hasMultipleAccounts(card.provider)
                         DetailRow { labelText: root.t("card.account", "Account"); valueText: root.providerAccount(card.provider) }
                         DetailRow { labelText: root.t("card.login", "Login"); valueText: root.providerLogin(card.provider) }
                         DetailRow { labelText: root.t("card.credits", "Credits"); valueText: root.providerCredits(card.provider); visible: root.providerCredits(card.provider) !== "—" }
@@ -1701,6 +1758,141 @@ DesktopPluginComponent {
         }
     }
 
+    // One signed-in account (IDE / Google session) with its per-model quota.
+    component AccountBlock : Rectangle {
+        id: acct
+        property var account
+        readonly property real worst: root.accountWorstPercent(account)
+        readonly property color accent: root.getUsageColor(worst)
+        readonly property var windows: (account && account.windows) ? account.windows : []
+        implicitHeight: acctCol.height
+        height: acctCol.height
+        radius: 8
+        color: Theme.withAlpha(Theme.surfaceContainerHighest, 0.45)
+        border.color: Theme.withAlpha(Theme.outlineVariant, 0.4)
+        border.width: 1
+
+        Rectangle { // left accent bar
+            width: 3
+            height: parent.height - Theme.spacingS * 2
+            anchors.left: parent.left
+            anchors.verticalCenter: parent.verticalCenter
+            radius: 2
+            color: acct.accent
+        }
+
+        Column {
+            id: acctCol
+            anchors.left: parent.left
+            anchors.right: parent.right
+            anchors.leftMargin: Theme.spacingS + 5
+            anchors.rightMargin: Theme.spacingS
+            topPadding: Theme.spacingS
+            bottomPadding: Theme.spacingS
+            spacing: 5
+
+            RowLayout { // header: install · email · worst%
+                width: parent.width
+                spacing: Theme.spacingS
+                DankIcon {
+                    name: "deployed_code"
+                    size: 14
+                    color: acct.accent
+                    Layout.alignment: Qt.AlignVCenter
+                }
+                ColumnLayout {
+                    Layout.fillWidth: true
+                    spacing: 0
+                    StyledText {
+                        text: root.accountLabel(acct.account)
+                        color: Theme.surfaceText
+                        font.pixelSize: Theme.fontSizeSmall - 1
+                        font.weight: Font.DemiBold
+                        elide: Text.ElideRight
+                        Layout.fillWidth: true
+                    }
+                    StyledText {
+                        text: root.accountEmail(acct.account)
+                        visible: text.length > 0
+                        color: Theme.surfaceVariantText
+                        font.pixelSize: Theme.fontSizeSmall - 3
+                        font.family: root.monoFontFamily
+                        elide: Text.ElideMiddle
+                        Layout.fillWidth: true
+                    }
+                }
+                StyledText {
+                    text: `${Math.round(acct.worst)}%`
+                    color: acct.accent
+                    font.pixelSize: Theme.fontSizeMedium
+                    font.weight: Font.Bold
+                    font.family: root.monoFontFamily
+                    Layout.alignment: Qt.AlignVCenter
+                }
+            }
+
+            StyledText { // pool explanation from the API
+                width: parent.width
+                visible: !!acct.account && !!acct.account.groupDescription && root.widgetWidth > 300
+                text: acct.account ? (acct.account.groupDescription || "") : ""
+                color: Theme.outlineVariant
+                font.pixelSize: Theme.fontSizeSmall - 3
+                wrapMode: Text.WordWrap
+            }
+
+            Repeater { // per-model windows
+                model: acct.windows
+                delegate: Column {
+                    id: winRow
+                    width: acctCol.width
+                    spacing: 2
+                    readonly property real used: Number(modelData.usedPercent || 0)
+                    RowLayout {
+                        width: parent.width
+                        spacing: Theme.spacingS
+                        StyledText {
+                            text: modelData.name || modelData.resetDescription || ""
+                            Layout.fillWidth: true
+                            color: Theme.surfaceText
+                            font.pixelSize: Theme.fontSizeSmall - 3
+                            font.family: root.monoFontFamily
+                            elide: Text.ElideRight
+                        }
+                        StyledText {
+                            text: root.formatTimeUntil(modelData.resetsAt)
+                            visible: text.length > 0 && text !== "—"
+                            color: Theme.surfaceVariantText
+                            font.pixelSize: Theme.fontSizeSmall - 4
+                            font.family: root.monoFontFamily
+                            Layout.alignment: Qt.AlignVCenter
+                        }
+                        StyledText {
+                            text: `${Math.round(winRow.used)}%`
+                            Layout.preferredWidth: 34
+                            horizontalAlignment: Text.AlignRight
+                            color: root.getUsageColor(winRow.used)
+                            font.pixelSize: Theme.fontSizeSmall - 3
+                            font.weight: Font.Medium
+                            font.family: root.monoFontFamily
+                        }
+                    }
+                    Rectangle { // mini progress
+                        width: parent.width
+                        height: 3
+                        radius: 1.5
+                        color: Theme.withAlpha(Theme.outlineVariant, 0.3)
+                        Rectangle {
+                            height: parent.height
+                            radius: parent.radius
+                            width: parent.width * Math.max(0, Math.min(100, winRow.used)) / 100
+                            color: root.getUsageColor(winRow.used)
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     component Sparkline : Canvas {
         id: spark
         property var points: []
@@ -1759,6 +1951,7 @@ DesktopPluginComponent {
             MetricTile { labelText: root.t("card.projected_month", "Projected month"); valueText: root.formatCost(root.claudeMonthProjection); accentColor: Theme.primary; visible: root.claudeMonthProjection > 0 }
             MetricTile { labelText: "5h"; valueText: Math.round(root.claudeFiveHourUtil) + "%"; accentColor: root.getUsageColor(root.claudeFiveHourUtil); visible: root.claudeFiveHourUtil > 0 }
             MetricTile { labelText: "7d"; valueText: Math.round(root.claudeSevenDayUtil) + "%"; accentColor: root.getUsageColor(root.claudeSevenDayUtil); visible: root.claudeSevenDayUtil > 0 }
+            MetricTile { labelText: root.claudeScopedLimitModel + " 7d"; valueText: Math.round(root.claudeScopedLimitUtil) + "%"; accentColor: root.getUsageColor(root.claudeScopedLimitUtil); visible: root.claudeScopedLimitModel !== "" && root.claudeScopedLimitUtil > 0 }
             MetricTile { labelText: root.t("card.extra_usage_on", "Extra usage on"); valueText: root.claudeExtraUsageEnabled ? "ON" : "OFF"; accentColor: root.claudeExtraUsageEnabled ? Theme.error : Theme.outlineVariant; visible: root.claudeFiveHourUtil > 0 || root.claudeSevenDayUtil > 0 }
         }
         Item { // daily token bars

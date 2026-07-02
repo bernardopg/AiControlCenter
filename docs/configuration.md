@@ -59,6 +59,8 @@ Add API providers only after their required environment variables are available 
 | xAI | `XAI_API_KEY` |
 | Kilo | `KILO_API_KEY` |
 
+Antigravity is intentionally not listed in the environment table because its current public quota surface is the authenticated `agy` TUI (`/credits`) rather than an API key or documented non-interactive usage endpoint.
+
 Environment variables must be present in the process that starts DMS. Shell-only exports may not reach a graphical session.
 
 ## Notifications

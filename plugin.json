@@ -2,14 +2,24 @@
   "id": "aiControlCenter",
   "name": "AiControlCenter",
   "description": "Workspace (desktop-layer) AI control center for DankMaterialShell — unified quotas, telemetry, and provider health in a dense technical-minimalist panel",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "author": "bernardopg",
   "icon": "developer_board",
   "type": "desktop",
-  "capabilities": ["desktop-widget"],
+  "capabilities": [
+    "desktop-widget"
+  ],
   "component": "./AiControlCenterWidget.qml",
   "settings": "./AiControlCenterSettings.qml",
-  "requires": ["bash", "jq", "curl"],
+  "requires": [
+    "bash",
+    "jq",
+    "curl"
+  ],
   "requires_dms": ">=1.2.0",
-  "permissions": ["process", "settings_read", "settings_write"]
+  "permissions": [
+    "process",
+    "settings_read",
+    "settings_write"
+  ]
 }

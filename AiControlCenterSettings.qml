@@ -109,6 +109,7 @@ PluginSettings {
         { id:"xai", name:"xAI (Grok)", icon:"bolt", mode:"telemetry", requirement:"API key", envVar:"XAI_API_KEY", note:"Official /v1/api-key authentication check" },
         { id:"kilo", name:"Kilo", icon:"speed", mode:"telemetry", requirement:"API key", envVar:"KILO_API_KEY", note:"Gateway models API authentication check" },
         { id:"ai21", name:"AI21", icon:"looks_21", mode:"telemetry", requirement:"API key", envVar:"AI21_API_KEY", note:"Configured status; no documented read-only usage API" },
+        { id:"antigravity", name:"Antigravity", icon:"deployed_code", mode:"telemetry", requirement:"Antigravity CLI keyring or IDE session", envVar:"", note:"Per-model quota and reset times, one block per signed-in account / IDE — expand the card to compare accounts" },
         { id:"perplexity", name:"Perplexity", icon:"travel_explore", mode:"informational", requirement:"none", envVar:"", note:"No public read-only quota API" },
         { id:"cursor", name:"Cursor", icon:"ads_click", mode:"informational", requirement:"none", envVar:"", note:"No public read-only quota API" },
         { id:"cline", name:"Cline", icon:"terminal", mode:"informational", requirement:"none", envVar:"", note:"No public read-only quota API" },

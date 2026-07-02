@@ -4,3 +4,4 @@ plugin_settings.json.bak*
 
 # Local usage history / cache (regenerated at runtime)
 .cache/
+.serena/

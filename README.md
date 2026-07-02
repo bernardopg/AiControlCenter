@@ -8,7 +8,7 @@ A self-contained [DankMaterialShell](https://github.com/AvengeMedia/DankMaterial
 
 [![CI](https://github.com/bernardopg/AiControlCenter/actions/workflows/ci.yml/badge.svg)](https://github.com/bernardopg/AiControlCenter/actions/workflows/ci.yml)
 [![License](https://img.shields.io/github/license/bernardopg/AiControlCenter)](./LICENSE)
-[![Providers](https://img.shields.io/badge/providers-33-7C4DFF)](./docs/providers.md)
+[![Providers](https://img.shields.io/badge/providers-34-7C4DFF)](./docs/providers.md)
 [![Languages](https://img.shields.io/badge/UI%20languages-5-00BFA5)](./docs/i18n.md)
 
 [Install](#installation) · [Configuration](./docs/configuration.md) · [Providers](./docs/providers.md) · [Changelog](./CHANGELOG.md)
@@ -23,7 +23,7 @@ AiControlCenter is the desktop-layer sibling of
 [AiOverviewControl](https://github.com/bernardopg/AiOverviewControl). Where the
 overview lives as a compact pill in your DankBar, AiControlCenter is a
 **persistent panel on your workspace** — draggable, resizable, and always on.
-It collects the same 33 AI providers and developer tools **locally and
+It collects the same 34 AI providers and developer tools **locally and
 independently**, normalizes the result, and renders one honest dashboard
 without any external aggregation service.
 
@@ -36,7 +36,7 @@ scraping. No fabricated percentages. Ever.
 | | |
 | --- | --- |
 | 🖥️ **Desktop-layer panel** | Lives on the workspace via wlr-layer-shell; free positioning, resize, and multi-monitor with persisted placement. |
-| 📊 **33 providers, unified** | Codex, Claude, Copilot, OpenRouter, Gemini, 9Router and 27 more in one dense view. |
+| 📊 **34 providers, unified** | Codex, Claude, Copilot, OpenRouter, Gemini, 9Router and 28 more in one dense view. |
 | 📈 **Rich telemetry** | Claude token/cost/model/project analytics, 9Router routed-provider telemetry, sparklines and trends. |
 | 🔢 **Technical-minimalist UI** | Monospace numerics, status accents only, responsive 1–4 column reflow that adapts to widget width. |
 | 🛡️ **Failure isolation** | One timeout or invalid credential never hides healthy providers. |

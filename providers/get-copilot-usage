@@ -96,57 +96,107 @@ jq -c --arg source "$source_name" --argjson updated_at "$updated_at" '
   def num($v): ($v // 0 | tonumber? // 0);
   def nonnegative($v): (num($v) | if . < 0 then 0 else . end);
   def quota($name): .quota_snapshots[$name] // {};
+
+  # When unlimited==true the API returns remaining:0 entitlement:0 — that is
+  # not exhausted, it means there is no cap. Treat separately.
+  def is_unlimited($q): ($q.unlimited? // false) == true;
+
   def used_percent($q):
-    if ($q.percent_remaining? != null) then (100 - num($q.percent_remaining))
+    if is_unlimited($q) then 0
+    elif ($q.has_quota? // true) == false then 100
+    elif ($q.percent_remaining? != null) then (100 - num($q.percent_remaining))
     elif ($q.entitlement? != null and num($q.entitlement) > 0) then
       ((num($q.entitlement) - num($q.remaining)) / num($q.entitlement) * 100)
     else 0 end;
+
   def display($q):
-    if ($q.remaining? != null and $q.entitlement? != null) then
-      ((nonnegative($q.remaining) | tostring) + " / " + (num($q.entitlement) | tostring) + " remaining")
+    if is_unlimited($q) then "Unlimited"
+    elif ($q.remaining? != null and $q.entitlement? != null and num($q.entitlement) > 0) then
+      ( (nonnegative($q.remaining) | tostring)
+        + " / " + (num($q.entitlement) | tostring) + " remaining"
+        + (if num($q.overage_count) > 0 then " (+" + (num($q.overage_count) | tostring) + " overage)" else "" end)
+      )
     elif ($q.percent_remaining? != null) then
       ((num($q.percent_remaining) | tostring) + "% remaining")
     else "Usage available" end;
+
+  # Plan label from the SKU + plan fields. access_type_sku distinguishes the
+  # Education/Student grant ("free_educational_quota") and the free tier from
+  # paid Pro — copilot_plan alone reports "individual" for all of them.
+  def plan_label:
+    (.access_type_sku // "" | tostring) as $sku |
+    (.copilot_plan // "" | tostring) as $plan |
+    if ($sku | test("educational|student")) then "Education"
+    elif ($sku | test("pro_plus")) or ($plan | test("pro_plus|individual_pro")) then "Pro+"
+    elif ($sku | test("^free")) or $plan == "free" then "Free"
+    elif $plan == "business" then "Business"
+    elif $plan == "enterprise" then "Enterprise"
+    elif $plan == "individual" then "Pro"
+    else ($plan | gsub("_"; " ")) end;
+
+  # Since 2026-06-01 Copilot bills token-based GitHub AI Credits instead of
+  # premium request units; the API keeps the premium_interactions snapshot but
+  # flags the new metering with token_based_billing.
+  def premium_label:
+    if (.token_based_billing? // false) == true
+    then "Premium requests · AI credits"
+    else "Premium requests" end;
+
+  # reset_date lives at the top level (quota_reset_date_utc), not per-snapshot.
+  (.quota_reset_date_utc // .quota_reset_date // null) as $reset_at |
+  (plan_label) as $plan_name |
+  ((.login // "GitHub Copilot") + (if $plan_name != "" then " · " + $plan_name else "" end)) as $account |
+  (premium_label) as $premium_desc |
+
   (quota("premium_interactions")) as $premium
   | (quota("chat")) as $chat
   | (quota("completions")) as $completions
+
+  # Only include chat/completions windows when they carry real quota info
+  # (not unlimited with no entitlement — those add no signal to the UI).
+  | (if (is_unlimited($chat) and num($chat.entitlement) == 0) then null
+     else {
+       usedPercent: used_percent($chat),
+       windowMinutes: 43200,
+       resetsAt: $reset_at,
+       resetDescription: "Chat",
+       displayValue: display($chat)
+     } end) as $chat_window
+  | (if (is_unlimited($completions) and num($completions.entitlement) == 0) then null
+     else {
+       usedPercent: used_percent($completions),
+       windowMinutes: 43200,
+       resetsAt: $reset_at,
+       resetDescription: "Completions",
+       displayValue: display($completions)
+     } end) as $completions_window
+
   | {
       provider:"copilot",
       source:$source,
       usage:{
         identity:{
           providerID:"copilot",
-          accountEmail:(.login // .copilot_plan // "GitHub Copilot"),
+          accountEmail:$account,
           loginMethod:"github-token"
         },
-        accountEmail:(.login // .copilot_plan // "GitHub Copilot"),
+        accountEmail:$account,
         loginMethod:"github-token",
         primary:{
-          usedPercent:used_percent($premium),
+          usedPercent:(used_percent($premium) | if . < 0 then 0 elif . > 100 then 100 else . end),
           windowMinutes:43200,
-          resetsAt:($premium.reset_date // null),
-          resetDescription:"Premium requests",
+          resetsAt:$reset_at,
+          resetDescription:$premium_desc,
           displayValue:display($premium)
         },
-        secondary:{
-          usedPercent:used_percent($chat),
-          windowMinutes:43200,
-          resetsAt:($chat.reset_date // null),
-          resetDescription:"Chat",
-          displayValue:display($chat)
-        },
-        tertiary:{
-          usedPercent:used_percent($completions),
-          windowMinutes:43200,
-          resetsAt:($completions.reset_date // null),
-          resetDescription:"Completions",
-          displayValue:display($completions)
-        },
+        secondary:$chat_window,
+        tertiary:$completions_window,
         updatedAt:($updated_at | todateiso8601)
       },
       credits:{
         remaining:(
-          if ($premium.remaining? != null) then (nonnegative($premium.remaining) | tostring)
+          if is_unlimited($premium) then "Unlimited"
+          elif ($premium.remaining? != null) then (nonnegative($premium.remaining) | tostring)
           elif ($premium.percent_remaining? != null) then ((num($premium.percent_remaining) | tostring) + "%")
           else "Active" end
         )

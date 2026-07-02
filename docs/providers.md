@@ -21,10 +21,10 @@ Every provider maps to exactly one coverage level. The level dictates what the w
 
 | Level | Meaning | Example providers |
 | --- | --- | --- |
-| **Quota** | Real `usedPercent` + reset window from an official protocol/API. | `codex`, `copilot`, `openrouter` |
+| **Quota** | Real `usedPercent` + reset window from an official protocol/API. | `codex`, `copilot`, `zai`, `antigravity`, `openrouter` |
 | **Balance** | Remaining prepaid balance / credits in real currency. | `kimi`, `deepseek`, `together` |
 | **Analytics** | Consumption counters (requests/tokens/neurons/cost) with no remaining-quota value. | `cloudflare` (GraphQL), `9router`, `claude` (local) |
-| **Auth** | Read-only key validation only — no usage numbers. | `gemini`, `mistral`, `nvidia`, `zai`, `qwen`, `byteplus`, `groq`, `cohere`, `replicate`, `fireworks`, `minimax`, `glm`, `xai`, `kilo` |
+| **Auth** | Read-only key validation only — no usage numbers. | `gemini`, `mistral`, `nvidia`, `qwen`, `byteplus`, `groq`, `cohere`, `replicate`, `fireworks`, `minimax`, `glm`, `xai`, `kilo` |
 | **Local runtime** | Local process / installed models. | `ollama`, `vertexai` (gcloud) |
 | **Informational** | No public read-only API at all; the card just links to the dashboard. | `perplexity`, `cursor`, `cline`, `opencode`, `kiro`, `warp`, `amp`, `ai21` |
 
@@ -63,7 +63,7 @@ The matrix below summarises the **authentication/billing surface** for every sup
 <td><code>claude</code></td>
 <td>Quota + local analytics</td>
 <td>local <code>~/.claude</code></td>
-<td>⚠️ best-effort 5h / 7d windows</td>
+<td>✅ 5h / 7d / weekly per-model (<code>limits[]</code>)</td>
 <td>✅ Pro / Max</td>
 <td>✅</td>
 <td><code>claude</code> OAuth</td>
@@ -74,8 +74,8 @@ The matrix below summarises the **authentication/billing surface** for every sup
 <td><code>copilot</code></td>
 <td>Quota snapshot</td>
 <td><code>copilot_internal/user</code></td>
-<td>✅ premium/chat/completions</td>
-<td>✅ Business / Enterprise</td>
+<td>✅ premium (AI credits) / chat / completions</td>
+<td>✅ Free / Pro / Pro+ / Education / Business / Enterprise</td>
 <td>—</td>
 <td><code>GH_TOKEN</code></td>
 <td><a href="https://github.com/settings/copilot">github.com/settings/copilot</a></td>
@@ -117,9 +117,9 @@ The matrix below summarises the **authentication/billing surface** for every sup
 </tr>
 <tr>
 <td><code>glm</code> / <code>zai</code></td>
-<td>Auth</td>
+<td>Auth (<code>glm</code>) / Quota (<code>zai</code>)</td>
 <td>✅ <code>GET /paas/v4/models</code></td>
-<td>❌ dashboard-only</td>
+<td>✅ <code>zai</code>: <code>GET /api/monitor/usage/quota/limit</code></td>
 <td>✅ GLM Coding Plan $18–$160/mo</td>
 <td>✅ per token</td>
 <td><code>ZAI_API_KEY</code> / <code>GLM_API_KEY</code></td>
@@ -202,6 +202,17 @@ The matrix below summarises the **authentication/billing surface** for every sup
 <td>—</td>
 <td><a href="https://app.kiro.dev/settings/account">app.kiro.dev</a></td>
 <td><a href="https://kiro.dev/docs/billing/">kiro.dev/docs</a></td>
+</tr>
+<tr>
+<td><code>antigravity</code></td>
+<td>Quota</td>
+<td>✅ local Antigravity OAuth (keyring / IDE session)</td>
+<td>✅ per-model remaining fraction + reset time</td>
+<td>✅ Google AI Pro / Ultra / Enterprise Agent Platform</td>
+<td>⚠️ AI Credit overages</td>
+<td>keyring / IDE session</td>
+<td><a href="https://antigravity.google/docs/cli-credits">antigravity.google/docs/cli-credits</a></td>
+<td><a href="https://antigravity.google/docs/cli-credits">AI Credits</a> / <a href="https://antigravity.google/docs/plans">Plans</a></td>
 </tr>
 <!-- Remaining providers -->
 <tr>
@@ -463,12 +474,12 @@ Detailed adapter notes for the focus providers (Gemini, Cloudflare, Mistral, GLM
 | **Env var** | `ZAI_API_KEY` (fallbacks `GLM_API_KEY`, `ZHIPU_API_KEY`). |
 | **Auth** | `Authorization: Bearer <key>`. |
 | **Key check** | `GET /paas/v4/models` → `200`; `401` on bad key (coding endpoint `/api/coding/paas/v4/models` also `401`). Zero tokens. |
-| **Quota / balance** | ❌ None documented. `/paas/v4/billing` returns `401` (auth-gated, unsupported — do not rely on it). |
+| **Quota / balance** | ✅ `GET https://api.z.ai/api/monitor/usage/quota/limit` (key-authenticated, zero tokens) returns the GLM Coding Plan windows: per-window `percentage`, `nextResetTime` (ms epoch) and plan `level` (`lite`/`pro`/`max`). Units: `4` = 5-hour, `6` = weekly (7 days from subscription), `5` = monthly (shared MCP Search/Reader/Zread pool, `usageDetails` + call counts), `3` = total token allotment. `/paas/v4/billing` still returns `401` — do not rely on it. |
 | **Plans** | PAYG per token **or** **GLM Coding Plan** (Lite $18, **Pro $72**, Max $160/mo; quarterly/annual discounts). 5-hour + weekly prompt windows; supported in Claude Code, Cline, OpenCode, Roo, Kilo, Crush, Goose, OpenClaw. **GLM-5.2 & GLM-5-Turbo consume 3× quota at peak (14:00–18:00 UTC+8), 2× off-peak** (1× off-peak promo through end of September). |
 | **Billing** | Per 1M tokens: **`glm-5.2`** $1.40/$4.40 (cached $0.26) &middot; `glm-5`/`glm-5-turbo` $1.0–$1.2/$3.2–$4.0 &middot; `glm-4.7`/`4.6`/`4.5` $0.60/$2.20 &middot; `glm-4.7-flash` & `glm-4.5-flash` **Free** &middot; `glm-5v-turbo` (vision) $1.2/$4.0. Web Search $0.01/use. |
 | **Dashboard** | [z.ai/manage-apikey](https://z.ai/manage-apikey) (keys), [/subscription](https://z.ai/manage-apikey/subscription) (Coding Plan), [/billing](https://z.ai/manage-apikey/billing) (finance). China: [open.bigmodel.cn](https://open.bigmodel.cn). |
 | **Changelog** | **GLM-5.2** live (1M lossless context, 128K max output, MCP, structured output). Lineage: 4.5 → 4.6 → 4.7 → 5 → 5-Turbo → 5.1 → **5.2**. New GLM-5V-Turbo (vision coding), GLM-Image, CogVideoX-3, GLM-ASR-2512, GLM-OCR. Coding Plan restructured (legacy plans migrated by 2026-04-30). |
-| **Adapter** | `fetch_glm_native` (China console) and `fetch_zai_native` (z.ai `GET /models`). `glm` validates against `open.bigmodel.cn`; `zai` validates against `api.z.ai`. |
+| **Adapter** | `fetch_glm_native` (China console, auth-only) and `fetch_zai_native` (real quota via `/api/monitor/usage/quota/limit`, sorted most-critical-first, with auth-only `/models` fallback). The card account label shows the detected plan (e.g. "GLM Coding Lite"). |
 
 ### NVIDIA (NIM / build.nvidia.com)
 
@@ -575,6 +586,20 @@ Detailed adapter notes for the focus providers (Gemini, Cloudflare, Mistral, GLM
 | **Changelog** | 2026-06-17 CLI v2.8 (CLI v3 early access). 2026-06-12 CLI v2.7 (`/goal` loops, queue steering). 2026-06-10 **Pro Max** tier. 2026-05-29 **Claude Opus 4.8** (2.2×, 1M ctx). 2026-05-26 HIPAA eligible. CLI v2.6/v2.7 transcript export, persistent prefs. |
 | **Adapter** | Informational card only (`json_note_usage kiro-local`). Links to [app.kiro.dev](https://app.kiro.dev). No scriptable surface. |
 
+### Antigravity (Google)
+
+| | |
+| --- | --- |
+| **CLI binary** | `agy` (installed by `curl -fsSL https://antigravity.google/cli/install.sh \| bash` to `~/.local/bin/agy`). Some desktop installs also expose an `antigravity` launcher. |
+| **Local config** | `~/.gemini/antigravity-cli/settings.json` for sparse CLI preferences; authentication is stored in the OS secure keyring / OAuth token profile, not a plain API key. |
+| **Auth** | Local OAuth. The signed-in IDE stores an `oauth2.Token` in `state.vscdb` (`antigravityUnifiedStateSync.oauthToken`, a base64 protobuf) and the `agy` CLI stores one in the desktop keyring. Access tokens (`ya29.*`) live ~1h and are usually stale in the DB, so the adapter recovers the long-lived **refresh token** (`1//…`) and mints a fresh access token via Google's public token endpoint using the Cloud Code client credentials embedded in the IDE bundle. `/logout` purges the profiles. |
+| **Quota / balance** | ✅ `POST https://cloudcode-pa.googleapis.com/v1internal:retrieveUserQuotaSummary` — the exact read-only endpoint the IDE statusline renders. It returns `groups[].buckets[]` where each bucket carries `displayName`, `remainingFraction` (0–1), `resetTime`, and a human `description` ("Quota resets in 6 days, 23 hours."), plus a group `description` explaining that Gemini Pro / Gemini Flash / Claude/GPT pools each have a per-week and per-5-hour cap (it surfaces the one closest to its limit). The adapter groups buckets by display family (name minus the tier parenthetical), takes the worst remaining fraction per family, and sorts most-consumed first. Zero prompt cost. |
+| **Plans** | Baseline quota is tied to Google AI plan eligibility. AI Ultra receives the highest quota, refreshed every five hours; AI Pro receives high quota refreshed every five hours until the weekly limit is reached; non-Pro/Ultra accounts receive meaningful weekly quota. |
+| **Overages** | Google AI Pro/Ultra users can opt into purchased AI Credits for overage usage through the `Use G1 Credits` / AI Credit Overages setting. |
+| **Dashboard / docs** | [AI Credits](https://antigravity.google/docs/cli-credits), [Plans](https://antigravity.google/docs/plans), [Installation & Auth](https://antigravity.google/docs/cli-install). |
+| **Multiple accounts** | ✅ Each Antigravity install keeps its own `state.vscdb` under a distinct config dir (`~/.config/Antigravity IDE/…`, `~/.config/Antigravity/…`, plus any other `*ntigravity*` dir), so two IDEs / two Google accounts appear as two databases. The adapter discovers every install, refreshes each session independently, dedupes by account email, and emits an `accounts[]` array — one entry per signed-in account with its own per-model windows and the account email (decoded from the refreshed `id_token`). The card renders one block per account so unused vs. exhausted accounts are compared side by side; the compact single-line card mirrors the most-constrained account. |
+| **Adapter** | `fetch_antigravity_native`. Per install, the refresh token (`1//…`) is recovered from the OAuth blob (`antigravityUnifiedStateSync.oauthToken` on current builds, `jetskiStateSync.agentManagerInitState` on older ones — up to two base64 layers), exchanged for a fresh access token, then used to call `retrieveUserQuotaSummary`. The desktop keyring (`secret-tool`, oauth2.Token JSON) is an additional session source. Refresh and access tokens ride in POST bodies / a piped curl config — never on the command line, stdout, or a temp file. Overrides: `ANTIGRAVITY_OAUTH_CLIENT_ID/SECRET`, `ANTIGRAVITY_TOKEN_URL`, `ANTIGRAVITY_STATE_DB` (pin one install for tests), `ANTIGRAVITY_API_BASE_URL`, `ANTIGRAVITY_RESPONSE_FILE` (quota-summary fixture). Needs `sqlite3`. |
+
 ## Direct tests
 
 Every provider has a `providers/get-<id>-usage` entrypoint and is covered by `providers/get-provider-health`. Examples:
@@ -585,8 +610,9 @@ Every provider has a `providers/get-<id>-usage` entrypoint and is covered by `pr
 ./providers/get-ollama-usage | jq .
 ./providers/get-xai-usage | jq .
 ./providers/get-kimi-usage | jq .
-./providers/get-provider-health "codex,openrouter,ollama,xai,kimi" | jq .
-./providers/get-provider-usage "gemini,cloudflare,mistral,glm,nvidia,minimax,kimi,qwen,xai,kilo,kiro" | jq .
+./providers/get-antigravity-usage | jq .
+./providers/get-provider-health "codex,openrouter,ollama,xai,kimi,antigravity" | jq .
+./providers/get-provider-usage "gemini,cloudflare,mistral,glm,nvidia,minimax,kimi,qwen,xai,kilo,antigravity,kiro" | jq .
 ```
 
 ## Output schema

@@ -40,6 +40,15 @@ status_for() {
     fireworks) has_any_env FIREWORKS_API_KEY || { status="missing"; detail="FIREWORKS_API_KEY"; } ;;
     xai|grok) has_any_env XAI_API_KEY || { status="missing"; detail="XAI_API_KEY"; } ;;
     kilo) has_any_env KILO_API_KEY || { status="missing"; detail="KILO_API_KEY"; } ;;
+    antigravity|agy)
+      command -v secret-tool >/dev/null 2>&1 || command -v sqlite3 >/dev/null 2>&1 || { status="missing"; detail="secret-tool or sqlite3"; }
+      # Auth lives in the desktop keyring or in the IDE's state.vscdb — the
+      # signed-in build writes "Antigravity IDE/", older builds "Antigravity/".
+      [ "$status" != "ready" ] || command -v secret-tool >/dev/null 2>&1 \
+        || [ -r "${XDG_CONFIG_HOME:-$HOME/.config}/Antigravity IDE/User/globalStorage/state.vscdb" ] \
+        || [ -r "${XDG_CONFIG_HOME:-$HOME/.config}/Antigravity/User/globalStorage/state.vscdb" ] \
+        || { status="missing"; detail="CLI keyring or IDE state"; }
+      ;;
     ai21) has_any_env AI21_API_KEY || { status="missing"; detail="AI21_API_KEY"; } ;;
     perplexity|cursor|cline|opencode|kiro|warp|amp)
       status="info"
