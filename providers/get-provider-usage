@@ -1501,7 +1501,7 @@ fetch_antigravity_native() {
               updatedAt:(now | todateiso8601)
             },
             accounts:$accts,
-            credits:{remaining: ($n | tostring) + " account" + (if $n == 1 then "" else "s" end)}
+            credits:{remaining: (($n | tostring) + " account" + (if $n == 1 then "" else "s" end))}
           }
       end
   ' "$accounts_file"
